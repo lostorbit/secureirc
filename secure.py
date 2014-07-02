@@ -6,6 +6,9 @@ except ImportError:
     
 import codecs as c
 
+# startup message
+wc.register("encrypt", "lostorbit", "0.1", "GPL3", "two way encryption", "", "")
+
 ## ===============================================================
 # user-callable encryption function
 def do_encrypt(data, buffer, args):
@@ -13,35 +16,46 @@ def do_encrypt(data, buffer, args):
     return wc.WEECHAT_RC_OK
 
 
+# capture encrypted data sent from server
+def mod_unencrypt(data, modifier, modifier_data, string):
+    wc.prnt(wc.current_buffer(), "===>\tentered mod_unencrypt")
+    return "%s %s" % (string, modifier_data)
+
+
+
 def do_unencrypt(data, signal, signal_data):
-    # data gotten
-    nick = wc.info_get("irc_nick_from_host", signal_data)
+    #wc.prnt(wc.current_buffer(), "===>\tentered do_unencrypt")
 
-    # data processed
-    if 
+    dict = wc.info_get_hashtable("irc_message_parse", { "message": signal_data } )
+    #for d in dict:
+    #    wc.prnt(wc.current_buffer(), "==>\t%s" % d)
+    #    wc.prnt(wc.current_buffer(), "===>\t%s" % dict[d])
 
-    # put the data back onto the screen
+    # channel info
+    nick = dict['nick']
     server = signal.split(",")[0]
-    channel = signal_data.split(":")[-1]
-    buffer = wc.info_get("irc_buffer", "%s,%s" % (server, channel))
-    if buffer:
-        wc.prnt(buffer, "%s> %s" % (nick, clean))
+    channel = dict['channel']
+    buffer = wc.info_get("irc_buffer", "%s,%s" % (server, channel) )
+
+    # get and unencrypt
+    dirty = dict['arguments'].split(':')[1]
+    clean = dirty[2:] #clean = dirty[-2:]
+    clean = enc(clean)[0]
+
+
+    ## put the data back onto the screen
+    if dirty[0]=='#' and dirty[1]=='#':
+        if buffer:
+            wc.prnt(buffer, "[%s]\t%s" % (nick, clean))
     return wc.WEECHAT_RC_OK
 ## ===============================================================
 
 # start our encoder
 enc = c.getencoder( "rot-13" )
-
-# test send to test channel
-buffer = wc.info_get("irc_buffer", "slacked,#testtest")
-wc.command(buffer, "using encryption")
-
-
-# startup message
-wc.register("encrypt", "lostorbit", "0.1", "GPL3", "two way encryption", "", "")
 wc.prnt(wc.current_buffer(), "===>\tencrypt 0.1 activated")
 
 # main 
+#hook2 = wc.hook_modifier("*,irc_in2_privmsg", "mod_unencrypt", "")
+hook2 = wc.hook_signal("*,irc_in2_privmsg", "do_unencrypt", "")
 hook1 = wc.hook_command("enc", "encrypts a message to the current channel", "", "", "", "do_encrypt", "")
-hook2 = wc.hook_signal("*,irc_in2_msg", "do_unencrypt", "")
 
